@@ -1,0 +1,7 @@
+{
+  "name": "QR Attendance System (by KT)",
+  "description": "An offline-first student attendance management system featuring QR code scanning, PDF reports, and Excel data import. Designed for resilient operation with local storage and cloud synchronization via Supabase.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
