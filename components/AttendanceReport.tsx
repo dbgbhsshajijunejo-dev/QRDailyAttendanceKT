@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { AttendanceRecord, Student } from '../types';
+import MonthlyRegister from './MonthlyRegister';
 
 interface AttendanceReportProps {
   attendance: AttendanceRecord[];
@@ -10,6 +11,7 @@ interface AttendanceReportProps {
 
 const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, students, schoolName }) => {
   const [showImageExport, setShowImageExport] = useState(false);
+  const [showMonthlyRegister, setShowMonthlyRegister] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const filteredAttendance = attendance.filter(a => {
@@ -83,6 +85,15 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
 
   return (
     <div className="space-y-6">
+      {showMonthlyRegister && (
+        <MonthlyRegister 
+          students={students}
+          attendance={attendance}
+          schoolName={schoolName}
+          onClose={() => setShowMonthlyRegister(false)}
+        />
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Attendance Analysis</h2>
@@ -95,6 +106,12 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border-slate-200 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
           />
+          <button 
+            onClick={() => setShowMonthlyRegister(true)}
+            className="bg-indigo-900 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-black transition-colors shadow-sm"
+          >
+            <span>📅</span> Monthly Register
+          </button>
           <button 
             onClick={() => setShowImageExport(true)}
             className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"
