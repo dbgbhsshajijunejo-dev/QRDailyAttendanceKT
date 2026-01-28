@@ -20,6 +20,10 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
   bool _isProcessing = false;
   String _selectedStatus = 'present';
   Map<String, int> _todayStats = {'present': 0, 'absent': 0, 'leave': 0};
+  
+  // UI feedback states
+  String? _lastScanName;
+  bool? _lastScanSuccess;
 
   @override
   void initState() {
@@ -44,13 +48,15 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
     if (barcodes.isEmpty) return;
 
     final String? code = barcodes.first.rawValue;
-    if (code == null || code.isEmpty) {
-      _logger.log("Malformed QR Code detected", level: LogLevel.warning);
-      return;
-    }
+    if (code == null || code.isEmpty) return;
 
-    setState(() => _isProcessing = true);
-    HapticFeedback.mediumImpact();
+    setState(() {
+      _isProcessing = true;
+      _lastScanName = "Processing...";
+      _lastScanSuccess = null;
+    });
+
+    HapticFeedback.heavyImpact();
 
     try {
       final result = await _attendanceService.markAttendance(
@@ -59,33 +65,26 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
       );
 
       if (mounted) {
-        _showFeedback(result);
+        setState(() {
+          _lastScanName = result.studentName ?? result.message;
+          _lastScanSuccess = result.success;
+        });
         _refreshStats();
       }
     } catch (e) {
-      _logger.log("Failed to process scanned QR", level: LogLevel.error, error: e);
-      if (mounted) {
-        _showFeedback(AttendanceResult(success: false, message: "Internal scanning error."));
-      }
+      _logger.log("Scan error", level: LogLevel.error, error: e);
+      setState(() => _lastScanSuccess = false);
     } finally {
+      // Cooldown to prevent duplicate accidental scans
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _isProcessing = false);
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _lastScanName = null;
+          });
+        }
       });
     }
-  }
-
-  void _showFeedback(AttendanceResult result) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.message),
-        backgroundColor: result.success ? Colors.green[700] : Colors.red[700],
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   @override
@@ -94,119 +93,118 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
       appBar: AppBar(
         title: const Text('Attendance Scanner'),
         actions: [
-          ValueListenableBuilder(
-            valueListenable: _cameraController.torchState,
-            builder: (context, state, child) {
-              return IconButton(
-                icon: Icon(state == TorchState.on ? Icons.flash_on : Icons.flash_off),
-                onPressed: () => _cameraController.toggleTorch(),
-              );
-            },
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            onPressed: () => _cameraController.toggleTorch(),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Header Stats
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _statItem('P', _todayStats['present']!, Colors.green),
-                    _statItem('A', _todayStats['absent']!, Colors.red),
-                    _statItem('L', _todayStats['leave']!, Colors.blue),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [_statusChip('Present', 'present', Colors.green), const SizedBox(width: 8), _statusChip('Absent', 'absent', Colors.red), const SizedBox(width: 8), _statusChip('Leave', 'leave', Colors.blue)],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
+          _buildStatsHeader(),
           Expanded(
             child: Stack(
               children: [
                 MobileScanner(
                   controller: _cameraController,
                   onDetect: _onDetect,
-                  errorBuilder: (context, error, child) {
-                    _logger.log("Camera hardware error", level: LogLevel.error, error: error);
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                          const SizedBox(height: 16),
-                          Text(error.errorCode == MobileScannerErrorCode.permissionDenied 
-                            ? "Camera Permission Denied" 
-                            : "Camera Hardware Error",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
                 ),
-                Center(
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Stack(
-                      children: [
-                        if (_isProcessing) const Center(child: CircularProgressIndicator(color: Colors.white)),
-                        Positioned(top: 0, left: 0, child: _corner(top: true, left: true)),
-                        Positioned(top: 0, right: 0, child: _corner(top: true, left: false)),
-                        Positioned(bottom: 0, left: 0, child: _corner(top: false, left: true)),
-                        Positioned(bottom: 0, right: 0, child: _corner(top: false, left: false)),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildScannerOverlay(),
+                if (_lastScanName != null) _buildResultOverlay(),
               ],
             ),
           ),
+          _buildStatusSelector(),
         ],
       ),
     );
   }
 
-  Widget _corner({required bool top, required bool left}) {
+  Widget _buildStatsHeader() {
     return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        border: Border(
-          top: top ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
-          bottom: !top ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
-          left: left ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
-          right: !left ? const BorderSide(color: Colors.white, width: 4) : BorderSide.none,
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _statCol('Present', _todayStats['present']!, Colors.green),
+          _statCol('Absent', _todayStats['absent']!, Colors.red),
+          _statCol('Leave', _todayStats['leave']!, Colors.blue),
+        ],
+      ),
+    );
+  }
+
+  Widget _statCol(String label, int val, Color color) {
+    return Column(
+      children: [
+        Text('$val', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  Widget _buildScannerOverlay() {
+    return Center(
+      child: Container(
+        width: 250,
+        height: 250,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Center(
+          child: Icon(Icons.qr_code_scanner, color: Colors.white24, size: 64),
         ),
       ),
     );
   }
 
-  Widget _statItem(String label, int value, Color color) {
-    return Column(
-      children: [
-        Text(value.toString(), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-      ],
+  Widget _buildResultOverlay() {
+    final color = _lastScanSuccess == null ? Colors.indigo : (_lastScanSuccess! ? Colors.green : Colors.red);
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _lastScanSuccess == null ? Icons.sync : (_lastScanSuccess! ? Icons.check_circle : Icons.error),
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _lastScanName!,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _statusChip('Present', 'present', Colors.green),
+          const SizedBox(width: 8),
+          _statusChip('Absent', 'absent', Colors.red),
+          const SizedBox(width: 8),
+          _statusChip('Leave', 'leave', Colors.blue),
+        ],
+      ),
     );
   }
 
@@ -215,9 +213,9 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      onSelected: (bool selected) { if (selected) setState(() => _selectedStatus = value); },
+      onSelected: (s) => setState(() => _selectedStatus = value),
       selectedColor: color.withOpacity(0.2),
-      labelStyle: TextStyle(color: isSelected ? color : Colors.grey[700], fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+      labelStyle: TextStyle(color: isSelected ? color : Colors.black87),
     );
   }
 

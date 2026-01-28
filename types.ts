@@ -9,6 +9,7 @@ export interface Student {
   gender: string;
   religion: string;
   qrCode: string;
+  photo?: string; // Base64 string
   sync_status: 'synced' | 'pending' | 'error';
   created_at: number;
 }
@@ -19,7 +20,7 @@ export interface AttendanceRecord {
   grNumber: string; // Institutional ID for convenience
   timestamp: number;
   session_name: string;
-  status: 'present' | 'absent' | 'late';
+  status: 'present' | 'absent' | 'leave';
   sync_status: 'synced' | 'pending' | 'error';
 }
 
@@ -28,7 +29,8 @@ export enum AppTab {
   STUDENTS = 'students',
   SCAN = 'scan',
   REPORTS = 'reports',
-  SYNC = 'sync'
+  SYNC = 'sync',
+  SETTINGS = 'settings'
 }
 
 export interface SyncStats {

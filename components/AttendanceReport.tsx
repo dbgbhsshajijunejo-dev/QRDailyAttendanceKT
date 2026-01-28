@@ -1,13 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AttendanceRecord, Student } from '../types';
 
 interface AttendanceReportProps {
   attendance: AttendanceRecord[];
   students: Student[];
+  schoolName: string;
 }
 
-const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, students }) => {
+const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, students, schoolName }) => {
+  const [showImageExport, setShowImageExport] = useState(false);
+
   const downloadReport = () => {
     const headers = ["GR Number", "Name", "Class", "Date", "Status"];
     const rows = attendance.map(a => {
@@ -34,14 +37,130 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
     document.body.removeChild(link);
   };
 
+  const getStats = () => {
+    const boys = students.filter(s => s.gender === 'Male');
+    const girls = students.filter(s => s.gender === 'Female');
+    
+    const countStatus = (genderStudents: Student[], status: string) => {
+      return attendance.filter(a => a.status === status && genderStudents.some(s => s.id === a.student_db_id)).length;
+    };
+
+    return {
+      boys: { 
+        total: boys.length, 
+        present: countStatus(boys, 'present'), 
+        absent: countStatus(boys, 'absent'),
+        leave: countStatus(boys, 'leave')
+      },
+      girls: { 
+        total: girls.length, 
+        present: countStatus(girls, 'present'), 
+        absent: countStatus(girls, 'absent'),
+        leave: countStatus(girls, 'leave')
+      },
+      total: { 
+        total: students.length, 
+        present: attendance.filter(a => a.status === 'present').length, 
+        absent: attendance.filter(a => a.status === 'absent').length,
+        leave: attendance.filter(a => a.status === 'leave').length 
+      }
+    };
+  };
+
+  const stats = getStats();
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold">Attendance Log</h2>
-        <button onClick={downloadReport} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
-          <span>📥</span> Export CSV
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowImageExport(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors"
+          >
+            <span>🖼️</span> WhatsApp Summary
+          </button>
+          <button onClick={downloadReport} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-indigo-700 transition-colors">
+            <span>📥</span> Export CSV
+          </button>
+        </div>
       </div>
+
+      {showImageExport && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden">
+             <button 
+               onClick={() => setShowImageExport(false)}
+               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl"
+             >✕</button>
+             
+             <div className="border-4 border-indigo-900 p-8 space-y-6 bg-white text-center">
+                <div className="border-b-2 border-indigo-100 pb-4">
+                  <h1 className="text-2xl font-black text-indigo-900 tracking-wider uppercase">{schoolName || "EDUSYNC INTERNATIONAL SCHOOL"}</h1>
+                  <p className="bg-indigo-900 text-white inline-block px-4 py-1 text-xs font-bold mt-2 tracking-widest uppercase">Daily Attendance Summary</p>
+                  <p className="text-indigo-700 font-semibold mt-2">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+
+                <table className="w-full border-2 border-indigo-900 border-collapse">
+                   <thead>
+                     <tr className="bg-indigo-900 text-white text-xs font-bold uppercase tracking-wider">
+                       <th className="border border-indigo-800 p-3">Status</th>
+                       <th className="border border-indigo-800 p-3">Boys</th>
+                       <th className="border border-indigo-800 p-3">Girls</th>
+                       <th className="border border-indigo-800 p-3">Total</th>
+                     </tr>
+                   </thead>
+                   <tbody className="text-sm font-medium">
+                     <tr>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-bold bg-indigo-50">PRESENT</td>
+                       <td className="border border-indigo-900 p-3 text-emerald-700">{stats.boys.present}</td>
+                       <td className="border border-indigo-900 p-3 text-emerald-700">{stats.girls.present}</td>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-black">{stats.total.present}</td>
+                     </tr>
+                     <tr>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-bold bg-indigo-50">ABSENT</td>
+                       <td className="border border-indigo-900 p-3 text-red-600">{stats.boys.absent}</td>
+                       <td className="border border-indigo-900 p-3 text-red-600">{stats.girls.absent}</td>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-black">{stats.total.absent}</td>
+                     </tr>
+                     <tr>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-bold bg-indigo-50">LEAVE</td>
+                       <td className="border border-indigo-900 p-3 text-blue-600">{stats.boys.leave}</td>
+                       <td className="border border-indigo-900 p-3 text-blue-600">{stats.girls.leave}</td>
+                       <td className="border border-indigo-900 p-3 text-indigo-900 font-black">{stats.total.leave}</td>
+                     </tr>
+                     <tr className="bg-indigo-900 text-white font-black">
+                       <td className="border border-indigo-900 p-3">STRENGTH</td>
+                       <td className="border border-indigo-900 p-3">{stats.boys.total}</td>
+                       <td className="border border-indigo-900 p-3">{stats.girls.total}</td>
+                       <td className="border border-indigo-900 p-3">{stats.total.total}</td>
+                     </tr>
+                   </tbody>
+                </table>
+
+                <div className="flex justify-between pt-12">
+                   <div className="text-center">
+                     <div className="w-32 h-px bg-indigo-900 mx-auto" />
+                     <p className="text-[10px] font-bold mt-1 text-indigo-900 uppercase">Class Teacher</p>
+                   </div>
+                   <div className="text-center">
+                     <div className="w-32 h-px bg-indigo-900 mx-auto" />
+                     <p className="text-[10px] font-bold mt-1 text-indigo-900 uppercase">Principal</p>
+                   </div>
+                </div>
+             </div>
+
+             <div className="mt-6 flex justify-center">
+                <button 
+                  onClick={() => setShowImageExport(false)}
+                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg"
+                >
+                  Close Preview
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="min-w-full divide-y divide-slate-200">
@@ -57,10 +176,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
               <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-500">No records found.</td></tr>
             ) : (
               [...attendance].reverse().map((record) => (
-                <tr key={record.id}>
+                <tr key={record.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(record.timestamp).toLocaleTimeString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{record.grNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-semibold text-emerald-600 capitalize">{record.status}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`text-xs font-black uppercase px-2 py-1 rounded ${
+                      record.status === 'present' ? 'bg-emerald-50 text-emerald-600' : 
+                      record.status === 'absent' ? 'bg-red-50 text-red-600' : 
+                      'bg-blue-50 text-blue-600'
+                    }`}>
+                      {record.status}
+                    </span>
+                  </td>
                 </tr>
               ))
             )}

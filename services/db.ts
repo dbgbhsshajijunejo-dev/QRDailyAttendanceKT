@@ -7,7 +7,7 @@ class LocalDatabase {
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 2); // Bump version for schema updates
+      const request = indexedDB.open(DB_NAME, 2);
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
@@ -43,6 +43,19 @@ class LocalDatabase {
     });
   }
 
+  async updateStudent(student: Student): Promise<void> {
+    return this.saveStudent(student);
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const store = this.getStore(STORE_STUDENTS, 'readwrite');
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async getAllStudents(): Promise<Student[]> {
     return new Promise((resolve, reject) => {
       const store = this.getStore(STORE_STUDENTS);
@@ -67,6 +80,16 @@ class LocalDatabase {
       const request = store.getAll();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  async clearAllData(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([STORE_STUDENTS, STORE_ATTENDANCE], 'readwrite');
+      transaction.objectStore(STORE_STUDENTS).clear();
+      transaction.objectStore(STORE_ATTENDANCE).clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
     });
   }
 

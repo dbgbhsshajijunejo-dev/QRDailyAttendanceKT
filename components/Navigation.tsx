@@ -14,6 +14,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     { id: AppTab.SCAN, label: 'Scan QR', icon: '🔍' },
     { id: AppTab.REPORTS, label: 'Reports', icon: '📄' },
     { id: AppTab.SYNC, label: 'Sync', icon: '☁️' },
+    { id: AppTab.SETTINGS, label: 'Settings', icon: '⚙️' },
   ];
 
   return (
