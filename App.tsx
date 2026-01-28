@@ -87,7 +87,7 @@ const App: React.FC = () => {
           />
         )}
         {activeTab === AppTab.SCAN && (
-          <QRScanner students={students} onScan={handleScan} />
+          <QRScanner students={students} attendance={attendance} onScan={handleScan} />
         )}
         {activeTab === AppTab.REPORTS && (
           <AttendanceReport attendance={attendance} students={students} schoolName={schoolName} />

@@ -6,29 +6,30 @@ import jsQR from 'jsqr';
 
 interface QRScannerProps {
   students: Student[];
+  attendance: AttendanceRecord[];
   onScan: (record: AttendanceRecord) => void;
 }
 
-const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
+const QRScanner: React.FC<QRScannerProps> = ({ students, attendance, onScan }) => {
   const [scanning, setScanning] = useState(false);
-  const [lastScanned, setLastScanned] = useState<Student | null>(null);
+  const [lastScanned, setLastScanned] = useState<{student: Student, isDuplicate: boolean} | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   
-  // Status State for QR Scanning
   const [selectedStatus, setSelectedStatus] = useState<'present' | 'absent' | 'leave'>('present');
   
-  const todayDate = new Date().toLocaleDateString('en-US', { 
+  const todayStr = new Date().toDateString();
+  const todayDateDisplay = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
 
-  const playBeep = () => {
+  const playBeep = (type: 'success' | 'error' = 'success') => {
     try {
       if (!audioCtxRef.current) {
         audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -40,15 +41,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
       const gainNode = ctx.createGain();
 
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+      oscillator.frequency.setValueAtTime(type === 'success' ? 880 : 220, ctx.currentTime);
       gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (type === 'success' ? 0.1 : 0.3));
 
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
 
       oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.15);
+      oscillator.stop(ctx.currentTime + (type === 'success' ? 0.15 : 0.35));
     } catch (e) {
       console.warn("Audio feedback failed", e);
     }
@@ -109,10 +110,27 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
       animationFrameId = requestAnimationFrame(tick);
     }
     return () => cancelAnimationFrame(animationFrameId);
-  }, [scanning, students, cooldown, selectedStatus]);
+  }, [scanning, students, cooldown, selectedStatus, attendance]);
 
   const processAttendance = (student: Student, status: 'present' | 'absent' | 'leave') => {
-    playBeep();
+    // Check for existing record today
+    const alreadyMarked = attendance.some(a => 
+      a.student_db_id === student.id && 
+      new Date(a.timestamp).toDateString() === todayStr
+    );
+
+    if (alreadyMarked) {
+      playBeep('error');
+      setLastScanned({ student, isDuplicate: true });
+      if (scanning) {
+        setCooldown(true);
+        setTimeout(() => setCooldown(false), 2000);
+      }
+      setTimeout(() => setLastScanned(null), 3000);
+      return;
+    }
+
+    playBeep('success');
     if (scanning) setCooldown(true);
     
     const record: AttendanceRecord = {
@@ -125,7 +143,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
       sync_status: 'pending'
     };
     onScan(record);
-    setLastScanned(student);
+    setLastScanned({ student, isDuplicate: false });
     
     setTimeout(() => {
       setLastScanned(null);
@@ -138,7 +156,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
       {/* Date Header */}
       <div className="bg-indigo-900 text-white p-4 rounded-2xl shadow-lg text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-1">Session Date</p>
-        <h2 className="text-sm font-black tracking-wide">{todayDate}</h2>
+        <h2 className="text-sm font-black tracking-wide">{todayDateDisplay}</h2>
       </div>
 
       {/* Global Status Selector for QR */}
@@ -174,11 +192,15 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
                  <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-indigo-500 rounded-br-xl" />
               </div>
               {!cooldown && <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,1)] animate-pulse" />}
-              {cooldown && <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center backdrop-blur-[2px] animate-in fade-in">
-                 <div className="bg-white rounded-full p-5 shadow-2xl scale-110">
-                    <span className="text-emerald-600 text-5xl">✓</span>
-                 </div>
-              </div>}
+              {cooldown && (
+                <div className={`absolute inset-0 flex items-center justify-center backdrop-blur-[2px] animate-in fade-in ${lastScanned?.isDuplicate ? 'bg-red-500/20' : 'bg-emerald-500/20'}`}>
+                   <div className="bg-white rounded-full p-5 shadow-2xl scale-110">
+                      <span className={`${lastScanned?.isDuplicate ? 'text-red-600' : 'text-emerald-600'} text-5xl`}>
+                        {lastScanned?.isDuplicate ? '✕' : '✓'}
+                      </span>
+                   </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-slate-500 flex flex-col items-center">
@@ -201,14 +223,18 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
         </div>
 
         {lastScanned && (
-          <div className="p-5 bg-slate-900 text-white rounded-[1.5rem] flex items-center gap-5 text-left animate-in slide-in-from-bottom-4 duration-300 shadow-2xl">
+          <div className={`p-5 rounded-[1.5rem] flex items-center gap-5 text-left animate-in slide-in-from-bottom-4 duration-300 shadow-2xl ${lastScanned.isDuplicate ? 'bg-red-900 text-white' : 'bg-slate-900 text-white'}`}>
             <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-500/50 bg-slate-800 flex-shrink-0 shadow-lg">
-              {lastScanned.photo ? <img src={lastScanned.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500 font-bold">NO PIC</div>}
+              {lastScanned.student.photo ? <img src={lastScanned.student.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500 font-bold">NO PIC</div>}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-emerald-400 font-black text-xs uppercase tracking-widest mb-1">RECORDED</p>
-              <p className="font-black text-lg truncate leading-tight">{lastScanned.name}</p>
-              <p className="text-xs text-slate-400 font-medium">Status: <span className="text-indigo-400 font-black uppercase">{selectedStatus}</span></p>
+              <p className={`${lastScanned.isDuplicate ? 'text-red-300' : 'text-emerald-400'} font-black text-xs uppercase tracking-widest mb-1`}>
+                {lastScanned.isDuplicate ? 'ALREADY MARKED' : 'RECORDED'}
+              </p>
+              <p className="font-black text-lg truncate leading-tight">{lastScanned.student.name}</p>
+              {!lastScanned.isDuplicate && (
+                <p className="text-xs text-slate-400 font-medium">Status: <span className="text-indigo-400 font-black uppercase">{selectedStatus}</span></p>
+              )}
             </div>
           </div>
         )}
@@ -220,7 +246,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
           <h3 className="font-black text-slate-800 flex items-center gap-2 text-sm uppercase tracking-[0.15em]">
             <span>📝</span> Full Student List
           </h3>
-          <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-[10px] font-black uppercase">{students.length} Registered</span>
+          <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-[10px] font-black uppercase">{students.length} Total</span>
         </div>
 
         <div className="space-y-4">
@@ -231,37 +257,49 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">No students registered</p>
               </div>
             ) : (
-              students.map(student => (
-                <div 
-                  key={student.id} 
-                  className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex items-center gap-4 transition-all hover:bg-white hover:border-indigo-100 hover:shadow-md group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-white overflow-hidden flex-shrink-0 shadow-sm border border-slate-100">
-                    {student.photo ? <img src={student.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-300 font-bold">PIC</div>}
+              students.map(student => {
+                const isMarked = attendance.some(a => 
+                  a.student_db_id === student.id && 
+                  new Date(a.timestamp).toDateString() === todayStr
+                );
+
+                return (
+                  <div 
+                    key={student.id} 
+                    className={`p-4 rounded-3xl border flex items-center gap-4 transition-all ${isMarked ? 'bg-slate-100 border-slate-200 opacity-70' : 'bg-slate-50 border-slate-100 hover:bg-white hover:border-indigo-100 hover:shadow-md'}`}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-white overflow-hidden flex-shrink-0 shadow-sm border border-slate-100 relative">
+                      {student.photo ? <img src={student.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-300 font-bold">PIC</div>}
+                      {isMarked && (
+                        <div className="absolute inset-0 bg-emerald-600/20 flex items-center justify-center">
+                          <span className="text-white drop-shadow-md text-xl">✓</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-black truncate ${isMarked ? 'text-slate-400' : 'text-slate-800 group-hover:text-indigo-600'}`}>{student.name}</p>
+                      <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider">GR: {student.grNumber}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button 
+                        disabled={isMarked}
+                        onClick={() => processAttendance(student, 'present')} 
+                        className={`w-10 h-10 rounded-xl text-xs font-black border transition-all ${isMarked ? 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:shadow-lg active:scale-90'}`}
+                      >P</button>
+                      <button 
+                        disabled={isMarked}
+                        onClick={() => processAttendance(student, 'absent')} 
+                        className={`w-10 h-10 rounded-xl text-xs font-black border transition-all ${isMarked ? 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-red-50 text-red-700 border-red-100 hover:bg-red-600 hover:text-white hover:shadow-lg active:scale-90'}`}
+                      >A</button>
+                      <button 
+                        disabled={isMarked}
+                        onClick={() => processAttendance(student, 'leave')} 
+                        className={`w-10 h-10 rounded-xl text-xs font-black border transition-all ${isMarked ? 'bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-600 hover:text-white hover:shadow-lg active:scale-90'}`}
+                      >L</button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-slate-800 truncate group-hover:text-indigo-600 transition-colors">{student.name}</p>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-wider">GR: {student.grNumber}</p>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button 
-                      onClick={() => processAttendance(student, 'present')} 
-                      className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-black border border-emerald-100 hover:bg-emerald-600 hover:text-white hover:shadow-lg hover:shadow-emerald-100 transition-all active:scale-90"
-                      title="Present"
-                    >P</button>
-                    <button 
-                      onClick={() => processAttendance(student, 'absent')} 
-                      className="w-10 h-10 rounded-xl bg-red-50 text-red-700 text-xs font-black border border-red-100 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-100 transition-all active:scale-90"
-                      title="Absent"
-                    >A</button>
-                    <button 
-                      onClick={() => processAttendance(student, 'leave')} 
-                      className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 text-xs font-black border border-blue-100 hover:bg-blue-600 hover:text-white hover:shadow-lg hover:shadow-blue-100 transition-all active:scale-90"
-                      title="Leave"
-                    >L</button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -269,7 +307,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ students, onScan }) => {
       
       <div className="text-center px-8 text-slate-400">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
-          EDU-SYNC OFFLINE PROTOCOL • V1.1
+          EDU-SYNC OFFLINE PROTOCOL • V1.2
         </p>
       </div>
 

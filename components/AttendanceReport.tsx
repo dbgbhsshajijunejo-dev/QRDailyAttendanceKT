@@ -10,10 +10,16 @@ interface AttendanceReportProps {
 
 const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, students, schoolName }) => {
   const [showImageExport, setShowImageExport] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const filteredAttendance = attendance.filter(a => {
+    const recordDate = new Date(a.timestamp).toISOString().split('T')[0];
+    return recordDate === selectedDate;
+  });
 
   const downloadReport = () => {
     const headers = ["GR Number", "Name", "Class", "Date", "Status"];
-    const rows = attendance.map(a => {
+    const rows = filteredAttendance.map(a => {
       const student = students.find(s => s.id === a.student_db_id);
       return [
         a.grNumber,
@@ -31,7 +37,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `attendance_report_${selectedDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -42,7 +48,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
     const girls = students.filter(s => s.gender === 'Female');
     
     const countStatus = (genderStudents: Student[], status: string) => {
-      return attendance.filter(a => a.status === status && genderStudents.some(s => s.id === a.student_db_id)).length;
+      return filteredAttendance.filter(a => a.status === status && genderStudents.some(s => s.id === a.student_db_id)).length;
     };
 
     return {
@@ -60,35 +66,69 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
       },
       total: { 
         total: students.length, 
-        present: attendance.filter(a => a.status === 'present').length, 
-        absent: attendance.filter(a => a.status === 'absent').length,
-        leave: attendance.filter(a => a.status === 'leave').length 
+        present: filteredAttendance.filter(a => a.status === 'present').length, 
+        absent: filteredAttendance.filter(a => a.status === 'absent').length,
+        leave: filteredAttendance.filter(a => a.status === 'leave').length 
       }
     };
   };
 
   const stats = getStats();
+  const displayDate = new Date(selectedDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-2xl font-bold">Attendance Log</h2>
-        <div className="flex gap-2">
+        <div>
+          <h2 className="text-2xl font-bold">Attendance Analysis</h2>
+          <p className="text-slate-500 text-sm">Select a date to view logs and generate summaries.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input 
+            type="date" 
+            value={selectedDate} 
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="border-slate-200 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm"
+          />
           <button 
             onClick={() => setShowImageExport(true)}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors"
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"
           >
-            <span>🖼️</span> WhatsApp Summary
+            <span>🖼️</span> Summary
           </button>
-          <button onClick={downloadReport} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-indigo-700 transition-colors">
-            <span>📥</span> Export CSV
+          <button onClick={downloadReport} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-sm">
+            <span>📥</span> CSV
           </button>
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Present</p>
+          <p className="text-2xl font-black text-emerald-600">{stats.total.present}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Absent</p>
+          <p className="text-2xl font-black text-red-600">{stats.total.absent}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Leave</p>
+          <p className="text-2xl font-black text-blue-600">{stats.total.leave}</p>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Date</p>
+          <p className="text-sm font-bold text-slate-700 truncate">{displayDate}</p>
+        </div>
+      </div>
+
       {showImageExport && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
              <button 
                onClick={() => setShowImageExport(false)}
                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl"
@@ -98,7 +138,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
                 <div className="border-b-2 border-indigo-100 pb-4">
                   <h1 className="text-2xl font-black text-indigo-900 tracking-wider uppercase">{schoolName || "EDUSYNC INTERNATIONAL SCHOOL"}</h1>
                   <p className="bg-indigo-900 text-white inline-block px-4 py-1 text-xs font-bold mt-2 tracking-widest uppercase">Daily Attendance Summary</p>
-                  <p className="text-indigo-700 font-semibold mt-2">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-indigo-700 font-semibold mt-2">{displayDate}</p>
                 </div>
 
                 <table className="w-full border-2 border-indigo-900 border-collapse">
@@ -153,7 +193,7 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
              <div className="mt-6 flex justify-center">
                 <button 
                   onClick={() => setShowImageExport(false)}
-                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg"
+                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-colors"
                 >
                   Close Preview
                 </button>
@@ -172,10 +212,10 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-200">
-            {attendance.length === 0 ? (
-              <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-500">No records found.</td></tr>
+            {filteredAttendance.length === 0 ? (
+              <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-500 italic">No records found for {selectedDate}.</td></tr>
             ) : (
-              [...attendance].reverse().map((record) => (
+              [...filteredAttendance].reverse().map((record) => (
                 <tr key={record.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(record.timestamp).toLocaleTimeString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{record.grNumber}</td>
