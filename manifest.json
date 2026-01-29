@@ -1,0 +1,18 @@
+
+{
+  "name": "EduSync QR Attendance",
+  "short_name": "EduSync",
+  "description": "Offline-first Student Attendance System",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1000/1000946.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
