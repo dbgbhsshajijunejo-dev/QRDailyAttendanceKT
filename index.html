@@ -7,7 +7,6 @@
   <title>EduSync QR Attendance</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- iOS PWA Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="EduSync QR">
@@ -26,33 +25,49 @@
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    
+    #reader {
+      width: 100% !important;
+      border: none !important;
+      background: #000;
+      border-radius: 2rem;
+      overflow: hidden;
+    }
+    #reader video {
+      border-radius: 2rem;
+      object-fit: cover !important;
+    }
   </style>
 <script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "uuid": "https://esm.sh/uuid@11.0.0",
+    "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
+    "html5-qrcode": "https://esm.sh/html5-qrcode@2.3.8",
+    "xlsx": "https://esm.sh/xlsx@0.18.5",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "qrcode": "https://esm.sh/qrcode@1.5.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "uuid": "https://esm.sh/uuid@^13.0.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "html5-qrcode": "https://esm.sh/html5-qrcode@^2.3.8",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
+    "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
 </script>
 </head>
 <body>
   <div id="root"></div>
+  <script type="module" src="index.tsx"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('Service Worker registered'))
-          .catch(err => console.log('SW registration failed:', err));
+          .then(reg => console.log('EduSync Offline Ready'))
+          .catch(err => console.log('Offline Setup Failed:', err));
       });
     }
-
     window.deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
