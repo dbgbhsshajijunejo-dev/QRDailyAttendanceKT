@@ -61,8 +61,18 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
       filteredAttendance.filter(a => a.status === status && students.find(s => s.id === a.student_db_id)?.gender === gender).length;
     
     return {
-      boys: { present: countStatus('Male', 'present'), absent: countStatus('Male', 'absent'), leave: countStatus('Male', 'leave'), total: students.filter(s => s.gender === 'Male').length },
-      girls: { present: countStatus('Female', 'present'), absent: countStatus('Female', 'absent'), leave: countStatus('Female', 'leave'), total: students.filter(s => s.gender === 'Female').length },
+      boys: { 
+        present: countStatus('Boys', 'present'), 
+        absent: countStatus('Boys', 'absent'), 
+        leave: countStatus('Boys', 'leave'), 
+        total: students.filter(s => s.gender === 'Boys').length 
+      },
+      girls: { 
+        present: countStatus('Girls', 'present'), 
+        absent: countStatus('Girls', 'absent'), 
+        leave: countStatus('Girls', 'leave'), 
+        total: students.filter(s => s.gender === 'Girls').length 
+      },
       total: { 
         present: filteredAttendance.filter(a => a.status === 'present').length, 
         absent: filteredAttendance.filter(a => a.status === 'absent').length, 
@@ -111,14 +121,28 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
                 </div>
 
                 <table className="w-full border-4 border-indigo-900 border-collapse">
-                   <thead><tr className="bg-indigo-900 text-white text-[10px] font-black uppercase">
-                     <th className="p-4 border border-indigo-800">STATUS</th>
-                     <th className="p-4 border border-indigo-800">BOYS</th>
-                     <th className="p-4 border border-indigo-800">GIRLS</th>
-                     <th className="p-4 border border-indigo-800">TOTAL</th>
-                   </tr></thead>
+                   <thead>
+                     <tr className="bg-indigo-900 text-white text-[10px] font-black uppercase">
+                       <th className="p-4 border border-indigo-800">STATUS</th>
+                       <th className="p-4 border border-indigo-800">BOYS</th>
+                       <th className="p-4 border border-indigo-800">GIRLS</th>
+                       <th className="p-4 border border-indigo-800">TOTAL</th>
+                     </tr>
+                   </thead>
                    <tbody className="text-sm font-black">
-                     {[ { l: 'PRESENT', b: stats.boys.present, g: stats.girls.present, t: stats.total.present, c: 'text-emerald-600' }, { l: 'ABSENT', b: stats.boys.absent, g: stats.girls.absent, t: stats.total.absent, c: 'text-red-600' }, { l: 'LEAVE', b: stats.boys.leave, g: stats.girls.leave, t: stats.total.leave, c: 'text-blue-600' } ].map((row, i) => (
+                     {/* New Total Strength Row */}
+                     <tr className="bg-indigo-50 text-indigo-900 border-b-2 border-indigo-900">
+                       <td className="p-4 border-r-2 border-indigo-900">TOTAL STRENGTH</td>
+                       <td className="p-4 border-r-2 border-indigo-900">{stats.boys.total}</td>
+                       <td className="p-4 border-r-2 border-indigo-900">{stats.girls.total}</td>
+                       <td className="p-4">{stats.total.total}</td>
+                     </tr>
+                     {/* Attendance Breakdown Rows */}
+                     {[ 
+                       { l: 'PRESENT', b: stats.boys.present, g: stats.girls.present, t: stats.total.present, c: 'text-emerald-600' }, 
+                       { l: 'ABSENT', b: stats.boys.absent, g: stats.girls.absent, t: stats.total.absent, c: 'text-red-600' }, 
+                       { l: 'LEAVE', b: stats.boys.leave, g: stats.girls.leave, t: stats.total.leave, c: 'text-blue-600' } 
+                     ].map((row, i) => (
                        <tr key={i} className="border-b-2 border-indigo-900">
                          <td className="p-4 border-r-2 border-indigo-900 text-indigo-900">{row.l}</td>
                          <td className="p-4 border-r-2 border-indigo-900">{row.b}</td>
@@ -126,9 +150,6 @@ const AttendanceReport: React.FC<AttendanceReportProps> = ({ attendance, student
                          <td className={`p-4 ${row.c}`}>{row.t}</td>
                        </tr>
                      ))}
-                     <tr className="bg-indigo-900 text-white">
-                       <td className="p-4">TOTAL STRENGTH</td><td className="p-4">{stats.boys.total}</td><td className="p-4">{stats.girls.total}</td><td className="p-4 font-black text-lg">{stats.total.total}</td>
-                     </tr>
                    </tbody>
                 </table>
 

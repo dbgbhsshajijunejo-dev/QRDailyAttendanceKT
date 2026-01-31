@@ -1,27 +1,33 @@
+
 {
-  "name": "qr-attendance-system-(by-kt)",
+  "name": "edusync-qr-attendance",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "uuid": "11.0.0",
-    "recharts": "2.12.7",
-    "html5-qrcode": "2.3.8",
-    "xlsx": "0.18.5",
-    "html2canvas": "1.4.1",
-    "qrcode": "1.5.3"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7",
+    "uuid": "^11.0.0",
+    "html5-qrcode": "^2.3.8",
+    "xlsx": "^0.18.5",
+    "html2canvas": "^1.4.1",
+    "qrcode": "^1.5.3",
+    "lucide-react": "^0.395.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1"
   }
 }

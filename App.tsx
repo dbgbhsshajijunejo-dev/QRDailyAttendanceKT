@@ -12,10 +12,13 @@ import SettingsView from './components/SettingsView';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.DASHBOARD);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [schoolName, setSchoolName] = useState<string>(() => localStorage.getItem('schoolName') || 'EDUSYNC INTERNATIONAL SCHOOL');
+  const [schoolName, setSchoolName] = useState<string>(() => {
+    return localStorage.getItem('schoolName') || 'EDUSYNC INTERNATIONAL SCHOOL';
+  });
 
   const fetchData = async () => {
     try {
@@ -56,22 +59,43 @@ const App: React.FC = () => {
   };
 
   const handleScan = async (record: AttendanceRecord) => {
-    await localDb.saveAttendance(record);
-    setAttendance(prev => [...prev, record]);
+    // Check if record for this day and student already exists to update it instead of duplicate
+    const recordDate = new Date(record.timestamp).toDateString();
+    const existingIndex = attendance.findIndex(a => 
+      a.student_db_id === record.student_db_id && 
+      new Date(a.timestamp).toDateString() === recordDate
+    );
+
+    if (existingIndex > -1) {
+      const updatedAttendance = [...attendance];
+      updatedAttendance[existingIndex] = record;
+      await localDb.saveAttendance(record);
+      setAttendance(updatedAttendance);
+    } else {
+      await localDb.saveAttendance(record);
+      setAttendance(prev => [...prev, record]);
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin text-4xl">⚙️</div>
-        <span className="ml-4 font-medium text-slate-600">Initializing Offline DB...</span>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="font-black text-indigo-900 uppercase tracking-widest text-xs">Loading EduSync Engine</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-20 md:pb-0 md:pt-16 bg-slate-50">
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="min-h-screen pt-20 bg-slate-50">
+      <Navigation 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+      />
       
       <main className="max-w-7xl mx-auto p-4 md:p-8">
         {activeTab === AppTab.DASHBOARD && (
@@ -87,7 +111,13 @@ const App: React.FC = () => {
           />
         )}
         {activeTab === AppTab.SCAN && (
-          <QRScanner students={students} attendance={attendance} onScan={handleScan} />
+          <QRScanner 
+            students={students} 
+            attendance={attendance} 
+            onScan={handleScan}
+            onUpdateStudent={handleUpdateStudent}
+            onNavigateToStudents={() => setActiveTab(AppTab.STUDENTS)}
+          />
         )}
         {activeTab === AppTab.REPORTS && (
           <AttendanceReport attendance={attendance} students={students} schoolName={schoolName} />
@@ -108,10 +138,9 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="hidden md:block py-12 text-center text-slate-400 text-sm">
+      <footer className="py-12 text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
         <p>Offline-First Architecture Implementation</p>
-        <p className="mt-1 font-bold text-slate-500 uppercase">{schoolName}</p>
-        <p className="mt-1">Built with React + Tailwind + Supabase (Mock)</p>
+        <p className="mt-2 text-indigo-500">{schoolName}</p>
       </footer>
     </div>
   );

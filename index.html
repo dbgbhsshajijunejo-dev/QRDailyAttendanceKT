@@ -3,76 +3,90 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>EduSync QR Attendance</title>
-  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>EduSync Pro | attendance</title>
   
+  <link rel="manifest" href="/manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="EduSync QR">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1000/1000946.png">
-  
   <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1000/1000946.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f8fafc;
-      overscroll-behavior-y: contain;
-      -webkit-tap-highlight-color: transparent;
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          borderRadius: { 'app': '2.5rem' }
+        }
+      }
     }
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-    
+  </script>
+
+  <style>
+    :root { --safe-area-inset-bottom: env(safe-area-inset-bottom); }
+    body { 
+      background-color: #f8fafc; 
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: none;
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
     #reader {
       width: 100% !important;
       border: none !important;
       background: #000;
-      border-radius: 2rem;
+      border-radius: 2.5rem;
       overflow: hidden;
     }
     #reader video {
-      border-radius: 2rem;
+      border-radius: 2.5rem;
       object-fit: cover !important;
+    }
+    @keyframes scan-line {
+      0% { top: 0%; }
+      100% { top: 100%; }
+    }
+    .scan-anim::after {
+      content: "";
+      position: absolute;
+      left: 0; width: 100%; height: 2px;
+      background: #6366f1;
+      box-shadow: 0 0 15px #6366f1;
+      animation: scan-line 2s linear infinite;
     }
   </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
-    "uuid": "https://esm.sh/uuid@11.0.0",
-    "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
-    "html5-qrcode": "https://esm.sh/html5-qrcode@2.3.8",
-    "xlsx": "https://esm.sh/xlsx@0.18.5",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-    "qrcode": "https://esm.sh/qrcode@1.5.3",
+    "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/"
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "uuid": "https://esm.sh/uuid@^13.0.0",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "html5-qrcode": "https://esm.sh/html5-qrcode@^2.3.8",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "qrcode": "https://esm.sh/qrcode@^1.5.4",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
   }
 }
 </script>
 </head>
-<body>
+<body class="font-sans">
   <div id="root"></div>
-  <script type="module" src="index.tsx"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('EduSync Offline Ready'))
-          .catch(err => console.log('Offline Setup Failed:', err));
-      });
-    }
-    window.deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      window.deferredPrompt = e;
-    });
-  </script>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
